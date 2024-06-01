@@ -11,4 +11,4 @@ INSERT INTO `acore_string` (`entry`, `content_default`, `locale_koKR`, `locale_f
 (@ENTRY+7, '[XP] You have disabled your XP gain.', '', '', '', '', '', '[XP] Has desactivado tu ganancia de XP.', '[XP] Has desactivado tu ganancia de XP.', ''),
 (@ENTRY+8, '[XP] You have enabled your XP gain.', '', '', '', '', '', '[XP] Has activado tu ganancia de XP.', '[XP] Has activado tu ganancia de XP.', ''),
 (@ENTRY+9, '[XP] You have restored your XP rate to the default value of %u.', '', '', '', '', '', '[XP] Has restaurado tu tasa de XP al valor por defecto de %u.', '[XP] Has restaurado tu tasa de XP al valor por defecto de %u.', ''),
-(@ENTRY+10, '[XP] Your maximal Individual XP is %u. Please try again with number lower than that.', '', '', '', '', '', '', '', '');
+(@ENTRY+10, '[XP] Your maximal Individual XP is %u. Please try again with a number equal to or lower than that.', '', '', '', '', '', '', '', '');
