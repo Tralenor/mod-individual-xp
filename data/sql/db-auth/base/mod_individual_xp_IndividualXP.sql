@@ -15,7 +15,7 @@
 CREATE TABLE IF NOT EXISTS `account_individualxp` (
   `AccountGUID` int(11) NOT NULL,
   `PersonalMaxXPRate` int(11) NOT NULL DEFAULT '0',
-  PRIMARY KEY (`CharacterGUID`)
+  PRIMARY KEY (`AccountGUID`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 -- Data exporting was unselected.
