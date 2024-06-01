@@ -1,5 +1,5 @@
 SET @ENTRY:=35411;
-DELETE FROM `acore_string` WHERE `entry` BETWEEN @ENTRY+0 AND @ENTRY+9;
+DELETE FROM `acore_string` WHERE `entry` BETWEEN @ENTRY+0 AND @ENTRY+10;
 INSERT INTO `acore_string` (`entry`, `content_default`, `locale_koKR`, `locale_frFR`, `locale_deDE`, `locale_zhCN`, `locale_zhTW`, `locale_esES`, `locale_esMX`, `locale_ruRU`) VALUES
 (@ENTRY+0, 'This server is running the |cff4CFF00IndividualXpRate |rmodule.', '', '', '', '', '', 'Este servidor está ejecutando el módulo |cff4CFF00 mod-individual-xp.', 'Este servidor está ejecutando el módulo |cff4CFF00 mod-individual-xp.', ''),
 (@ENTRY+1, '[XP] The Individual XP module is deactivated.', '', '', '', '', '', '[XP] El módulo XP individual está desactivado.', '[XP] El módulo XP individual está desactivado.', ''),
@@ -10,4 +10,5 @@ INSERT INTO `acore_string` (`entry`, `content_default`, `locale_koKR`, `locale_f
 (@ENTRY+6, '[XP] You have updated your XP rate to %u.', '', '', '', '', '', '[XP] Has actualizado tu XP a %u', '[XP] Has actualizado tu XP a %u', ''),
 (@ENTRY+7, '[XP] You have disabled your XP gain.', '', '', '', '', '', '[XP] Has desactivado tu ganancia de XP.', '[XP] Has desactivado tu ganancia de XP.', ''),
 (@ENTRY+8, '[XP] You have enabled your XP gain.', '', '', '', '', '', '[XP] Has activado tu ganancia de XP.', '[XP] Has activado tu ganancia de XP.', ''),
-(@ENTRY+9, '[XP] You have restored your XP rate to the default value of %u.', '', '', '', '', '', '[XP] Has restaurado tu tasa de XP al valor por defecto de %u.', '[XP] Has restaurado tu tasa de XP al valor por defecto de %u.', '');
+(@ENTRY+9, '[XP] You have restored your XP rate to the default value of %u.', '', '', '', '', '', '[XP] Has restaurado tu tasa de XP al valor por defecto de %u.', '[XP] Has restaurado tu tasa de XP al valor por defecto de %u.', ''),
+(@ENTRY+10, '[XP] Your maximal Individual XP is %u. Please try again with number lower than that.', '', '', '', '', '', '', '', '');

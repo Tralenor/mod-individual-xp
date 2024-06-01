@@ -37,11 +37,11 @@ enum IndividualXPAcoreString {
     ACORE_STRING_COMMAND_VIEW,
     ACORE_STRING_MAX_RATE,
     ACORE_STRING_MIN_RATE,
-    ACORE_STRING_PERSONAL_MAX_RATE,
     ACORE_STRING_COMMAND_SET,
     ACORE_STRING_COMMAND_DISABLED,
     ACORE_STRING_COMMAND_ENABLED,
-    ACORE_STRING_COMMAND_DEFAULT
+    ACORE_STRING_COMMAND_DEFAULT,
+    ACORE_STRING_PERSONAL_MAX_RATE
 };
 
 class IndividualXpAnnounce : public PlayerScript {
@@ -65,6 +65,7 @@ public:
 
     uint32 XPRate = 1;
 };
+
 
 class IndividualXP : public PlayerScript {
 public:
@@ -160,20 +161,18 @@ public:
         if (!player)
             return false;
 
-        int currentAccountMaxRate{1};
-        QueryResult result = CharacterDatabase.Query(
+        uint32 personalMaxRate{2};
+        QueryResult result = LoginDatabase.Query(
                 "SELECT `PersonalMaxXPRate` FROM `account_individualxp` WHERE `AccountGUID`='{}'",
                 player->GetSession()->GetAccountId());
-
         if (!result) {
-            player->CustomData.GetDefault<PlayerXpRate>("IndividualXP")->XPRate = DefaultRate;
         } else {
             Field *fields = result->Fetch();
-            currentAccountMaxRate = fields[0].Get<uint32>();
+            personalMaxRate = fields[0].Get<uint32>();
         }
 
-        if (rate > currentAccountMaxRate) {
-            handler->PSendSysMessage(ACORE_STRING_MAX_RATE, currentAccountMaxRate);
+        if (rate > personalMaxRate) {
+            handler->PSendSysMessage(ACORE_STRING_PERSONAL_MAX_RATE, personalMaxRate);
             handler->SetSentErrorMessage(true);
             return false;
         }
