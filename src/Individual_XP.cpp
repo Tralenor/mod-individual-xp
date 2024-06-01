@@ -18,13 +18,11 @@ bool IndividualXpAnnounceModule;
 uint32 MaxRate;
 uint32 DefaultRate;
 
-class IndividualXPConf : public WorldScript
-{
+class IndividualXPConf : public WorldScript {
 public:
-    IndividualXPConf() : WorldScript("IndividualXPConf") { }
+    IndividualXPConf() : WorldScript("IndividualXPConf") {}
 
-    void OnBeforeConfigLoad(bool /*reload*/) override
-    {
+    void OnBeforeConfigLoad(bool /*reload*/) override {
         IndividualXpAnnounceModule = sConfigMgr->GetOption<bool>("IndividualXp.Announce", 1);
         IndividualXpEnabled = sConfigMgr->GetOption<bool>("IndividualXp.Enabled", 1);
         MaxRate = sConfigMgr->GetOption<uint32>("MaxXPRate", 10);
@@ -32,138 +30,123 @@ public:
     }
 };
 
-enum IndividualXPAcoreString
-{
+enum IndividualXPAcoreString {
     ACORE_STRING_CREDIT = 35411,
     ACORE_STRING_MODULE_DISABLED,
     ACORE_STRING_RATES_DISABLED,
     ACORE_STRING_COMMAND_VIEW,
     ACORE_STRING_MAX_RATE,
     ACORE_STRING_MIN_RATE,
+    ACORE_STRING_PERSONAL_MAX_RATE,
     ACORE_STRING_COMMAND_SET,
     ACORE_STRING_COMMAND_DISABLED,
     ACORE_STRING_COMMAND_ENABLED,
     ACORE_STRING_COMMAND_DEFAULT
 };
 
-class IndividualXpAnnounce : public PlayerScript
-{
+class IndividualXpAnnounce : public PlayerScript {
 public:
 
     IndividualXpAnnounce() : PlayerScript("IndividualXpAnnounce") {}
 
-    void OnLogin(Player* player)
-    {
+    void OnLogin(Player *player) {
         // Announce Module
-        if ((IndividualXpEnabled) && (IndividualXpAnnounceModule))
-        {
+        if ((IndividualXpEnabled) && (IndividualXpAnnounceModule)) {
             ChatHandler(player->GetSession()).SendSysMessage(ACORE_STRING_CREDIT);
         }
     }
 };
 
-class PlayerXpRate : public DataMap::Base
-{
+class PlayerXpRate : public DataMap::Base {
 public:
     PlayerXpRate() {}
+
     PlayerXpRate(uint32 XPRate) : XPRate(XPRate) {}
+
     uint32 XPRate = 1;
 };
 
-class IndividualXP : public PlayerScript
-{
+class IndividualXP : public PlayerScript {
 public:
     IndividualXP() : PlayerScript("IndividualXP") {}
 
-    void OnLogin(Player* player) override
-    {
-        QueryResult result = CharacterDatabase.Query("SELECT `XPRate` FROM `individualxp` WHERE `CharacterGUID`='{}'", player->GetGUID().GetCounter());
+    void OnLogin(Player *player) override {
+        QueryResult result = CharacterDatabase.Query("SELECT `XPRate` FROM `individualxp` WHERE `CharacterGUID`='{}'",
+                                                     player->GetGUID().GetCounter());
 
-        if (!result)
-        {
+        if (!result) {
             player->CustomData.GetDefault<PlayerXpRate>("IndividualXP")->XPRate = DefaultRate;
-        }
-        else
-        {
-            Field* fields = result->Fetch();
+        } else {
+            Field *fields = result->Fetch();
             player->CustomData.Set("IndividualXP", new PlayerXpRate(fields[0].Get<uint32>()));
         }
     }
 
-    void OnLogout(Player* player) override
-    {
-        if (PlayerXpRate* data = player->CustomData.Get<PlayerXpRate>("IndividualXP"))
-        {
-            CharacterDatabase.DirectExecute("REPLACE INTO `individualxp` (`CharacterGUID`, `XPRate`) VALUES ('{}', '{}');", player->GetGUID().GetCounter(), data->XPRate);
+    void OnLogout(Player *player) override {
+        if (PlayerXpRate *data = player->CustomData.Get<PlayerXpRate>("IndividualXP")) {
+            CharacterDatabase.DirectExecute(
+                    "REPLACE INTO `individualxp` (`CharacterGUID`, `XPRate`) VALUES ('{}', '{}');",
+                    player->GetGUID().GetCounter(), data->XPRate);
         }
     }
 
-    void OnGiveXP(Player* player, uint32& amount, Unit* /*victim*/, uint8 /*xpSource*/) override
-    {
-        if (IndividualXpEnabled)
-        {
-            if (PlayerXpRate* data = player->CustomData.Get<PlayerXpRate>("IndividualXP"))
+    void OnGiveXP(Player *player, uint32 &amount, Unit * /*victim*/, uint8 /*xpSource*/) override {
+        if (IndividualXpEnabled) {
+            if (PlayerXpRate *data = player->CustomData.Get<PlayerXpRate>("IndividualXP"))
                 amount *= data->XPRate;
         }
     }
 
 };
 
-class IndividualXPCommand : public CommandScript
-{
+class IndividualXPCommand : public CommandScript {
 public:
     IndividualXPCommand() : CommandScript("IndividualXPCommand") {}
 
-    ChatCommandTable GetCommands() const override
-    {
+    ChatCommandTable GetCommands() const override {
         static ChatCommandTable IndividualXPCommandTable =
-        {
-            { "enable",  HandleEnableCommand, SEC_PLAYER, Console::No },
-            { "disable",  HandleDisableCommand, SEC_PLAYER, Console::No },
-            { "view",  HandleViewCommand, SEC_PLAYER, Console::No },
-            { "set",  HandleSetCommand, SEC_PLAYER, Console::No },
-            { "default",  HandleDefaultCommand, SEC_PLAYER, Console::No }
-        };
+                {
+                        {"enable",  HandleEnableCommand,  SEC_PLAYER, Console::No},
+                        {"disable", HandleDisableCommand, SEC_PLAYER, Console::No},
+                        {"view",    HandleViewCommand,    SEC_PLAYER, Console::No},
+                        {"set",     HandleSetCommand,     SEC_PLAYER, Console::No},
+                        {"default", HandleDefaultCommand, SEC_PLAYER, Console::No}
+                };
 
         static ChatCommandTable IndividualXPBaseTable =
-        {
-            { "xp",  IndividualXPCommandTable }
-        };
+                {
+                        {"xp", IndividualXPCommandTable}
+                };
 
         return IndividualXPBaseTable;
     }
 
-    static bool HandleViewCommand(ChatHandler* handler)
-    {
-        if (!IndividualXpEnabled)
-        {
+    static bool HandleViewCommand(ChatHandler *handler) {
+        if (!IndividualXpEnabled) {
             handler->PSendSysMessage(ACORE_STRING_MODULE_DISABLED);
             handler->SetSentErrorMessage(true);
             return false;
         }
 
-        Player* player = handler->GetSession()->GetPlayer();
+        Player *player = handler->GetSession()->GetPlayer();
 
         if (!player)
             return false;
 
-        if (player->HasFlag(PLAYER_FLAGS, PLAYER_FLAGS_NO_XP_GAIN))
-        {
+        if (player->HasFlag(PLAYER_FLAGS, PLAYER_FLAGS_NO_XP_GAIN)) {
             handler->PSendSysMessage(ACORE_STRING_RATES_DISABLED);
             handler->SetSentErrorMessage(true);
             return false;
-        }
-        else
-        {
-            player->GetSession()->SendAreaTriggerMessage(ACORE_STRING_COMMAND_VIEW, player->CustomData.GetDefault<PlayerXpRate>("IndividualXP")->XPRate);
+        } else {
+            player->GetSession()->SendAreaTriggerMessage(ACORE_STRING_COMMAND_VIEW,
+                                                         player->CustomData.GetDefault<PlayerXpRate>(
+                                                                 "IndividualXP")->XPRate);
         }
         return true;
     }
 
-    static bool HandleSetCommand(ChatHandler* handler, uint32 rate)
-    {
-        if (!IndividualXpEnabled)
-        {
+    static bool HandleSetCommand(ChatHandler *handler, uint32 rate) {
+        if (!IndividualXpEnabled) {
             handler->PSendSysMessage(ACORE_STRING_MODULE_DISABLED);
             handler->SetSentErrorMessage(true);
             return false;
@@ -172,19 +155,33 @@ public:
         if (!rate)
             return false;
 
-        Player* player = handler->GetSession()->GetPlayer();
+        Player *player = handler->GetSession()->GetPlayer();
 
         if (!player)
             return false;
 
-        if (rate > MaxRate)
-        {
-            handler->PSendSysMessage(ACORE_STRING_MAX_RATE, MaxRate);
+        int currentAccountMaxRate{1};
+        QueryResult result = CharacterDatabase.Query(
+                "SELECT `PersonalMaxXPRate` FROM `account_individualxp` WHERE `AccountGUID`='{}'",
+                player->GetSession()->GetAccountId());
+
+        if (!result) {
+            player->CustomData.GetDefault<PlayerXpRate>("IndividualXP")->XPRate = DefaultRate;
+        } else {
+            Field *fields = result->Fetch();
+            currentAccountMaxRate = fields[0].Get<uint32>();
+        }
+
+        if (rate > currentAccountMaxRate) {
+            handler->PSendSysMessage(ACORE_STRING_MAX_RATE, currentAccountMaxRate);
             handler->SetSentErrorMessage(true);
             return false;
         }
-        else if (rate == 0)
-        {
+        if (rate > MaxRate) {
+            handler->PSendSysMessage(ACORE_STRING_MAX_RATE, MaxRate);
+            handler->SetSentErrorMessage(true);
+            return false;
+        } else if (rate == 0) {
             handler->PSendSysMessage(ACORE_STRING_MIN_RATE);
             handler->SetSentErrorMessage(true);
             return false;
@@ -195,16 +192,14 @@ public:
         return true;
     }
 
-    static bool HandleDisableCommand(ChatHandler* handler)
-    {
-        if (!IndividualXpEnabled)
-        {
+    static bool HandleDisableCommand(ChatHandler *handler) {
+        if (!IndividualXpEnabled) {
             handler->PSendSysMessage(ACORE_STRING_MODULE_DISABLED);
             handler->SetSentErrorMessage(true);
             return false;
         }
 
-        Player* player = handler->GetSession()->GetPlayer();
+        Player *player = handler->GetSession()->GetPlayer();
 
         if (!player)
             return false;
@@ -215,16 +210,14 @@ public:
         return true;
     }
 
-    static bool HandleEnableCommand(ChatHandler* handler)
-    {
-        if (!IndividualXpEnabled)
-        {
+    static bool HandleEnableCommand(ChatHandler *handler) {
+        if (!IndividualXpEnabled) {
             handler->PSendSysMessage(ACORE_STRING_MODULE_DISABLED);
             handler->SetSentErrorMessage(true);
             return false;
         }
 
-        Player* player = handler->GetSession()->GetPlayer();
+        Player *player = handler->GetSession()->GetPlayer();
 
         if (!player)
             return false;
@@ -234,16 +227,14 @@ public:
         return true;
     }
 
-    static bool HandleDefaultCommand(ChatHandler* handler)
-    {
-        if (!IndividualXpEnabled)
-        {
+    static bool HandleDefaultCommand(ChatHandler *handler) {
+        if (!IndividualXpEnabled) {
             handler->PSendSysMessage(ACORE_STRING_MODULE_DISABLED);
             handler->SetSentErrorMessage(true);
             return false;
         }
 
-        Player* player = handler->GetSession()->GetPlayer();
+        Player *player = handler->GetSession()->GetPlayer();
 
         if (!player)
             return false;
@@ -254,8 +245,7 @@ public:
     }
 };
 
-void AddIndividualXPScripts()
-{
+void AddIndividualXPScripts() {
     new IndividualXPConf();
     new IndividualXpAnnounce();
     new IndividualXP();
