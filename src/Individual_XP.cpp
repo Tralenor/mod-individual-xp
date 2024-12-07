@@ -63,7 +63,7 @@ public:
 
     PlayerXpRate(uint32 XPRate) : XPRate(XPRate) {}
 
-    uint32 XPRate = 1;
+    float XPRate = 1.0f;
 };
 
 
@@ -79,7 +79,7 @@ public:
             player->CustomData.GetDefault<PlayerXpRate>("IndividualXP")->XPRate = DefaultRate;
         } else {
             Field *fields = result->Fetch();
-            player->CustomData.Set("IndividualXP", new PlayerXpRate(fields[0].Get<uint32>()));
+            player->CustomData.Set("IndividualXP", new PlayerXpRate(fields[0].Get<float>()));
         }
     }
 
@@ -139,9 +139,9 @@ public:
             handler->SetSentErrorMessage(true);
             return false;
         } else {
-            player->GetSession()->SendAreaTriggerMessage(ACORE_STRING_COMMAND_VIEW,
+            player->GetSession()->SendAreaTriggerMessage(ACORE_STRING_COMMAND_VIEW,std::to_string(
                                                          player->CustomData.GetDefault<PlayerXpRate>(
-                                                                 "IndividualXP")->XPRate);
+                                                                 "IndividualXP")->XPRate));
         }
         return true;
     }
@@ -161,14 +161,14 @@ public:
         if (!player)
             return false;
 
-        uint32 personalMaxRate{2};
+        float personalMaxRate{2.0f};
         QueryResult result = LoginDatabase.Query(
                 "SELECT `PersonalMaxXPRate` FROM `account_individualxp` WHERE `AccountGUID`='{}'",
                 player->GetSession()->GetAccountId());
         if (!result) {
         } else {
             Field *fields = result->Fetch();
-            personalMaxRate = fields[0].Get<uint32>();
+            personalMaxRate = static_cast<float>(fields[0].Get<int>());
         }
 
         if (rate > personalMaxRate) {
