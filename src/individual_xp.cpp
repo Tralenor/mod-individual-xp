@@ -65,6 +65,7 @@ public:
     IndividualXP() : PlayerScript("IndividualXP") {}
 
     void OnPlayerLogin(Player* player) override
+    {
         QueryResult result = CharacterDatabase.Query("SELECT `XPRate` FROM `individualxp` WHERE `CharacterGUID`='{}'",
                                                      player->GetGUID().GetCounter());
 
@@ -103,6 +104,7 @@ public:
     }
 
     void OnPlayerLogout(Player* player) override
+    {
         if (PlayerXpRate *data = player->CustomData.Get<PlayerXpRate>("IndividualXP")) {
             CharacterDatabase.DirectExecute(
                     "REPLACE INTO `individualxp` (`CharacterGUID`, `XPRate`) VALUES ('{}', '{}');",
