@@ -5,6 +5,7 @@
 #include "Player.h"
 #include "Object.h"
 #include "DataMap.h"
+#include "ObjectAccessor.h"
 
 using namespace Acore::ChatCommands;
 
@@ -128,22 +129,267 @@ class IndividualXPCommand : public CommandScript {
 public:
     IndividualXPCommand() : CommandScript("IndividualXPCommand") {}
 
-    ChatCommandTable GetCommands() const override {
+    ChatCommandTable GetCommands() const override
+    {
+        static ChatCommandTable CharCommandTable =
+                {
+                        { "set",  HandleCharSetCommand,  SEC_GAMEMASTER, Console::No },
+                        { "view", HandleCharViewCommand, SEC_GAMEMASTER, Console::No },
+                };
+
+        static ChatCommandTable AccountCommandTable =
+                {
+                        { "set_max",  HandleAccountSetMaxCommand,  SEC_GAMEMASTER, Console::No },
+                        { "view_max", HandleAccountViewMaxCommand, SEC_GAMEMASTER, Console::No },
+                };
+
         static ChatCommandTable IndividualXPCommandTable =
                 {
-                        {"enable",  HandleEnableCommand,  SEC_PLAYER, Console::No},
-                        {"disable", HandleDisableCommand, SEC_PLAYER, Console::No},
-                        {"view",    HandleViewCommand,    SEC_PLAYER, Console::No},
-                        {"set",     HandleSetCommand,     SEC_PLAYER, Console::No},
-                        {"default", HandleDefaultCommand, SEC_PLAYER, Console::No}
+                        { "enable",  HandleEnableCommand,  SEC_PLAYER,     Console::No },
+                        { "disable", HandleDisableCommand, SEC_PLAYER,     Console::No },
+                        { "view",    HandleViewCommand,    SEC_PLAYER,     Console::No },
+                        { "set",     HandleSetCommand,     SEC_PLAYER,     Console::No },
+                        { "default", HandleDefaultCommand, SEC_PLAYER,     Console::No },
+
+                        // NEW
+                        { "char",    CharCommandTable },
+                        { "account", AccountCommandTable },
                 };
 
         static ChatCommandTable IndividualXPBaseTable =
                 {
-                        {"xp", IndividualXPCommandTable}
+                        { "xp", IndividualXPCommandTable }
                 };
 
         return IndividualXPBaseTable;
+    }
+
+    // -------------------------
+    // NEW helpers
+    // -------------------------
+    static bool GetCharacterGuidAndAccount(std::string& name, uint32& outGuidLow, uint32& outAccountId)
+    {
+        if (!normalizePlayerName(name))
+            return false;
+
+        QueryResult r = CharacterDatabase.Query(
+                "SELECT `guid`, `account` FROM `characters` WHERE `name`='{}'",
+                name);
+
+        if (!r)
+            return false;
+
+        Field* f = r->Fetch();
+        outGuidLow = f[0].Get<uint32>();
+        outAccountId = f[1].Get<uint32>();
+        return true;
+    }
+
+    static bool GetAccountIdByName(std::string const& accountName, uint32& outAccountId)
+    {
+        QueryResult r = LoginDatabase.Query(
+                "SELECT `id` FROM `account` WHERE UPPER(`username`) = UPPER('{}')",
+                accountName);
+
+        if (!r)
+            return false;
+
+        outAccountId = r->Fetch()[0].Get<uint32>();
+        return true;
+    }
+
+    static float GetPersonalMaxRateForAccount(uint32 accountId)
+    {
+        float personalMaxRate = 2.0f;
+
+        QueryResult r = LoginDatabase.Query(
+                "SELECT `PersonalMaxXPRate` FROM `account_individualxp` WHERE `AccountGUID`='{}'",
+                accountId);
+
+        if (r)
+        {
+            Field* f = r->Fetch();
+            personalMaxRate = static_cast<float>(f[0].Get<int>());
+        }
+
+        return personalMaxRate;
+    }
+
+    static float GetCharacterRateFromDB(uint32 guidLow)
+    {
+        QueryResult r = CharacterDatabase.Query(
+                "SELECT `XPRate` FROM `individualxp` WHERE `CharacterGUID`='{}'",
+                guidLow);
+
+        if (!r)
+            return individualXp.DefaultRate;
+
+        return r->Fetch()[0].Get<float>();
+    }
+
+    // -------------------------
+    // NEW: xp char view <name>
+    // -------------------------
+    static bool HandleCharViewCommand(ChatHandler* handler, std::string name)
+    {
+        if (!individualXp.Enabled)
+        {
+            handler->PSendSysMessage(ACORE_STRING_MODULE_DISABLED);
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+
+        uint32 guidLow = 0;
+        uint32 accountId = 0;
+
+        if (!GetCharacterGuidAndAccount(name, guidLow, accountId))
+        {
+            handler->PSendSysMessage("Character '%s' not found.", name.c_str());
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+
+        float rate = GetCharacterRateFromDB(guidLow);
+        handler->PSendSysMessage("XP rate for '%s' is %.2f (default=%.2f).", name.c_str(), rate, individualXp.DefaultRate);
+        handler->PSendSysMessage("Global max is %.2f.", individualXp.MaxRate);
+
+        float personalMax = GetPersonalMaxRateForAccount(accountId);
+        handler->PSendSysMessage("Account personal max for '%s' is %.2f.", name.c_str(), personalMax);
+
+        return true;
+    }
+
+    // -------------------------
+    // NEW: xp char set <name> <rate>
+    // -------------------------
+    static bool HandleCharSetCommand(ChatHandler* handler, std::string name, float rate)
+    {
+        if (!individualXp.Enabled)
+        {
+            handler->PSendSysMessage(ACORE_STRING_MODULE_DISABLED);
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+
+        if (!rate)
+            return false;
+
+        if (rate < 0.1f)
+        {
+            handler->PSendSysMessage(ACORE_STRING_MIN_RATE);
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+
+        if (rate > individualXp.MaxRate)
+        {
+            handler->PSendSysMessage(ACORE_STRING_MAX_RATE, individualXp.MaxRate);
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+
+        uint32 guidLow = 0;
+        uint32 accountId = 0;
+
+        if (!GetCharacterGuidAndAccount(name, guidLow, accountId))
+        {
+            handler->PSendSysMessage("Character '%s' not found.", name.c_str());
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+
+        float personalMax = GetPersonalMaxRateForAccount(accountId);
+        if (rate > personalMax)
+        {
+            handler->PSendSysMessage(ACORE_STRING_PERSONAL_MAX_RATE, personalMax);
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+
+        // Persist for offline/online character
+        CharacterDatabase.DirectExecute(
+                "REPLACE INTO `individualxp` (`CharacterGUID`, `XPRate`) VALUES ('{}', '{}')",
+                guidLow, rate);
+
+        // If online, update live CustomData too
+        ObjectGuid guid = ObjectGuid::Create<HighGuid::Player>(guidLow);
+        if (Player* target = ObjectAccessor::FindPlayer(guid))
+            target->CustomData.GetDefault<PlayerXpRate>("IndividualXP")->XPRate = rate;
+
+        handler->PSendSysMessage("Set XP rate for '%s' to %.2f.", name.c_str(), rate);
+        return true;
+    }
+
+    // -------------------------
+    // NEW: xp account view_max <account_name>
+    // -------------------------
+    static bool HandleAccountViewMaxCommand(ChatHandler* handler, std::string accountName)
+    {
+        if (!individualXp.Enabled)
+        {
+            handler->PSendSysMessage(ACORE_STRING_MODULE_DISABLED);
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+
+        uint32 accountId = 0;
+        if (!GetAccountIdByName(accountName, accountId))
+        {
+            handler->PSendSysMessage("Account '%s' not found.", accountName.c_str());
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+
+        float personalMax = GetPersonalMaxRateForAccount(accountId);
+        handler->PSendSysMessage("Account '%s' personal max XP rate is %.2f (global max=%.2f).",
+                                 accountName.c_str(), personalMax, individualXp.MaxRate);
+
+        return true;
+    }
+
+    // -------------------------
+    // NEW: xp account set_max <account_name> <rate>
+    // -------------------------
+    static bool HandleAccountSetMaxCommand(ChatHandler* handler, std::string accountName, float rate)
+    {
+        if (!individualXp.Enabled)
+        {
+            handler->PSendSysMessage(ACORE_STRING_MODULE_DISABLED);
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+
+        if (!rate)
+            return false;
+
+        if (rate < 0.1f)
+        {
+            handler->PSendSysMessage(ACORE_STRING_MIN_RATE);
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+
+        if (rate > individualXp.MaxRate)
+        {
+            handler->PSendSysMessage(ACORE_STRING_MAX_RATE, individualXp.MaxRate);
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+
+        uint32 accountId = 0;
+        if (!GetAccountIdByName(accountName, accountId))
+        {
+            handler->PSendSysMessage("Account '%s' not found.", accountName.c_str());
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+
+        LoginDatabase.DirectExecute(
+                "REPLACE INTO `account_individualxp` (`AccountGUID`, `PersonalMaxXPRate`) VALUES ('{}', '{}')",
+                accountId, rate);
+
+        handler->PSendSysMessage("Set account '%s' personal max XP rate to %.2f.", accountName.c_str(), rate);
+        return true;
     }
 
 
