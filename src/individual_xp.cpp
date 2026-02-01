@@ -134,7 +134,9 @@ public:
         static ChatCommandTable CharCommandTable =
                 {
                         { "set",  HandleCharSetCommand,  SEC_GAMEMASTER, Console::No },
+                        { "set_override",  HandleCharOverrideSetCommand,  SEC_GAMEMASTER, Console::No },
                         { "view", HandleCharViewCommand, SEC_GAMEMASTER, Console::No },
+
                 };
 
         static ChatCommandTable AccountCommandTable =
@@ -151,7 +153,6 @@ public:
                         { "set",     HandleSetCommand,     SEC_PLAYER,     Console::No },
                         { "default", HandleDefaultCommand, SEC_PLAYER,     Console::No },
 
-                        // NEW
                         { "char",    CharCommandTable },
                         { "account", AccountCommandTable },
                 };
@@ -305,6 +306,51 @@ public:
             handler->SetSentErrorMessage(true);
             return false;
         }
+
+        // Persist for offline/online character
+        CharacterDatabase.DirectExecute(
+                "REPLACE INTO `individualxp` (`CharacterGUID`, `XPRate`) VALUES ('{}', '{}')",
+                guidLow, rate);
+
+        // If online, update live CustomData too
+        ObjectGuid guid = ObjectGuid::Create<HighGuid::Player>(guidLow);
+        if (Player* target = ObjectAccessor::FindPlayer(guid))
+            target->CustomData.GetDefault<PlayerXpRate>("IndividualXP")->XPRate = rate;
+
+        handler->PSendSysMessage("Set XP rate for '%s' to %.2f.", name.c_str(), rate);
+        return true;
+    }
+
+    static bool HandleCharOverrideSetCommand(ChatHandler* handler, std::string name, float rate)
+    {
+        if (!individualXp.Enabled)
+        {
+            handler->PSendSysMessage(ACORE_STRING_MODULE_DISABLED);
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+
+        if (!rate)
+            return false;
+
+        if (rate < 0.1f)
+        {
+            handler->PSendSysMessage(ACORE_STRING_MIN_RATE);
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+
+
+        uint32 guidLow = 0;
+        uint32 accountId = 0;
+
+        if (!GetCharacterGuidAndAccount(name, guidLow, accountId))
+        {
+            handler->PSendSysMessage("Character '%s' not found.", name.c_str());
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+
 
         // Persist for offline/online character
         CharacterDatabase.DirectExecute(
