@@ -133,16 +133,16 @@ public:
     {
         static ChatCommandTable CharCommandTable =
                 {
-                        { "set",  HandleCharSetCommand,  SEC_GAMEMASTER, Console::No },
-                        { "set_override",  HandleCharOverrideSetCommand,  SEC_GAMEMASTER, Console::No },
-                        { "view", HandleCharViewCommand, SEC_GAMEMASTER, Console::No },
+                        { "set",  HandleCharSetCommand,  SEC_GAMEMASTER, Console::Yes },
+                        { "set_override",  HandleCharOverrideSetCommand,  SEC_GAMEMASTER, Console::Yes },
+                        { "view", HandleCharViewCommand, SEC_GAMEMASTER, Console::Yes },
 
                 };
 
         static ChatCommandTable AccountCommandTable =
                 {
-                        { "set_max",  HandleAccountSetMaxCommand,  SEC_GAMEMASTER, Console::No },
-                        { "view_max", HandleAccountViewMaxCommand, SEC_GAMEMASTER, Console::No },
+                        { "set_max",  HandleAccountSetMaxCommand,  SEC_GAMEMASTER, Console::Yes },
+                        { "view_max", HandleAccountViewMaxCommand, SEC_GAMEMASTER, Console::Yes },
                 };
 
         static ChatCommandTable IndividualXPCommandTable =
